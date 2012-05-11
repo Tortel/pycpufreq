@@ -35,7 +35,7 @@ class trayIcon:
     self.maxFreq = self.updater.getMaxFreq();
     self.icon = gtk.StatusIcon()
     #Tooltip is the mouseover text, should be changes to CPU frequencies
-    self.icon.set_tooltip("Max frequency: "+self.maxFreq)
+    self.icon.set_tooltip("Max frequency: "+str(self.maxFreq)+"mhz")
     self.icon.set_from_file("cpufreq-100.png")
     self.icon.connect("activate", self.openBrowser)
     self.menu = gtk.Menu()
@@ -66,8 +66,8 @@ class UpdateThread( threading.Thread ):
   def getMaxFreq(self):
     # cpufreq-info -l | awk '{print $2}'
     # Max freq value
-    self.p = subprocess.Popen(['cpufreq-info', '-l', '|', 'awk', '\'{print $2}\''], stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
-    return self.p.stdout.readline()
+    self.p = subprocess.Popen(['cpufreq-info', '-l'], stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
+    return int(self.p.stdout.readline().split()[1]) / 1000
 
   
   def getCurFreq(self):
