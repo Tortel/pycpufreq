@@ -61,19 +61,30 @@ class trayIcon:
 #Need to figure out how many CPUs there are
 class UpdateThread( threading.Thread ):
   def run ( self ):
+    #Frequency to compare current speed
+    self.compFreq = self.maxFreq - self.minFreq
     while(1):
-        print 'Update core frequencies'
+        #print 'Update core frequencies'
         self.text = ''
         #Update the text
         for i in range(0, self.cpus):
-            print 'Core '+str(i)
             self.freq[i] = self.getCurFreq(i)
             self.text += 'Core '+str(i)+': '+str(self.freq[i])+'Mhz\n'
-        self.tray.setText(self.text)
-        print self.text
-        self.tray.setImage("cpufreq-100.png")
-        print 'Sleeping...'
-        time.sleep(1.5)
+        self.tray.setText(self.text.strip())
+        #print self.text
+        #Determine what image is best
+        self.tmp = float(max(self.freq)) / float(self.maxFreq)
+        #print self.tmp
+        if(self.tmp >= 0.75):
+            self.tray.setImage("cpufreq-100.png")
+        elif(self.tmp >= 0.50):
+            self.tray.setImage("cpufreq-75.png")
+        elif(self.tmp >= 0.25):
+            self.tray.setImage("cpufreq-50.png")
+        else:
+            self.tray.setImage("cpufreq-25.png")
+        #print 'Sleeping...'
+        time.sleep(2)
     return
     
   def setTray(self, tray):
@@ -89,6 +100,13 @@ class UpdateThread( threading.Thread ):
     self.p = subprocess.Popen(['cpufreq-info', '-l'], stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
     self.maxFreq = int(self.p.stdout.readline().split()[1]) / 1000
     return self.maxFreq
+    
+  def getMinFreq(self):
+    # cpufreq-info -l | awk '{print $1}'
+    # Max freq value
+    self.p = subprocess.Popen(['cpufreq-info', '-l'], stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
+    self.minFreq = int(self.p.stdout.readline().split()[0]) / 1000
+    return self.minFreq
 
   
   def getCurFreq(self, core = 0):
@@ -100,10 +118,12 @@ class UpdateThread( threading.Thread ):
     threading.Thread.__init__(self)
     self.setTray(tray)
     self.getMaxFreq()
+    self.getMinFreq()
     self.setNumCPUs(multiprocessing.cpu_count())
   
 
 if __name__=="__main__":
+  gtk.gdk.threads_init()
   icon = trayIcon()
   update = UpdateThread(icon).start()
   gtk.main()
