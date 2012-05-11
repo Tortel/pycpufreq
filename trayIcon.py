@@ -5,13 +5,21 @@ import gtk
 import os
 import threading
 import subprocess
+import multiprocessing
+import time
 
 class trayIcon:
   
   #On left-click event
   def openBrowser(self, widget):
-    self.icon.set_from_file("cpufreq-100.png")
-      
+    return
+  
+  def setImage(self, icon):
+    self.icon.set_from_file(icon)
+    
+  def setText(self, text):
+    self.icon.set_tooltip(text)
+    
   def openWindow(self, widget):
     return
 
@@ -21,7 +29,6 @@ class trayIcon:
     gtk.main_quit()
     exit()
 
-
   def showMenu(self, widget, button, time, data = None):
     #On right click, open the options menu
     if button == 3:
@@ -30,13 +37,11 @@ class trayIcon:
             data.popup(None, None, None, 3, time) 
 
   def __init__(self):
-    #Get the max freq
-    self.updater = UpdateThread()
-    self.maxFreq = self.updater.getMaxFreq();
+    #Initilize the updating thread
     self.icon = gtk.StatusIcon()
     #Tooltip is the mouseover text, should be changes to CPU frequencies
-    self.icon.set_tooltip("Max frequency: "+str(self.maxFreq)+"mhz")
-    self.icon.set_from_file("cpufreq-100.png")
+    self.icon.set_tooltip("Max frequency: 100mhz")
+    self.setImage("cpufreq-100.png")
     self.icon.connect("activate", self.openBrowser)
     self.menu = gtk.Menu()
     #First menu item
@@ -52,31 +57,53 @@ class trayIcon:
     self.icon.connect("popup-menu",self.showMenu,self.menu)
 
 
-    
-def main():
-  gtk.main()
-
-
 #Need a threaded class to run in the background and update every second, changing the image and setting the text
 #Need to figure out how many CPUs there are
 class UpdateThread( threading.Thread ):
   def run ( self ):
+    while(1):
+        print 'Update core frequencies'
+        self.text = ''
+        #Update the text
+        for i in range(0, self.cpus):
+            print 'Core '+str(i)
+            self.freq[i] = self.getCurFreq(i)
+            self.text += 'Core '+str(i)+': '+str(self.freq[i])+'Mhz\n'
+        self.tray.setText(self.text)
+        print self.text
+        self.tray.setImage("cpufreq-100.png")
+        print 'Sleeping...'
+        time.sleep(1.5)
     return
+    
+  def setTray(self, tray):
+    self.tray = tray
+    
+  def setNumCPUs(self, num):
+    self.freq = range(num)
+    self.cpus = num
   
   def getMaxFreq(self):
     # cpufreq-info -l | awk '{print $2}'
     # Max freq value
     self.p = subprocess.Popen(['cpufreq-info', '-l'], stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
-    return int(self.p.stdout.readline().split()[1]) / 1000
+    self.maxFreq = int(self.p.stdout.readline().split()[1]) / 1000
+    return self.maxFreq
 
   
-  def getCurFreq(self):
+  def getCurFreq(self, core = 0):
     # cpufreq-info -c # -f
-    return
-
-
+    self.p = subprocess.Popen(['cpufreq-info', '-c', str(core), '-f'], stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
+    return int(self.p.stdout.readline()) / 1000
+  
+  def __init__(self, tray):
+    threading.Thread.__init__(self)
+    self.setTray(tray)
+    self.getMaxFreq()
+    self.setNumCPUs(multiprocessing.cpu_count())
   
 
 if __name__=="__main__":
   icon = trayIcon()
-  main()
+  update = UpdateThread(icon).start()
+  gtk.main()
