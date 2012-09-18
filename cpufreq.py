@@ -84,7 +84,7 @@ class UpdateThread( threading.Thread ):
         else:
             self.tray.setImage("cpufreq-25.png")
         #print 'Sleeping...'
-        time.sleep(2)
+        time.sleep(3)
     return
     
   def setTray(self, tray):
